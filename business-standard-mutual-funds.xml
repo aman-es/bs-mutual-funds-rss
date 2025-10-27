@@ -1,67 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<rss version="2.0">
-<channel>
-  <title><![CDATA[Business Standard — Mutual Funds (Unofficial RSS)]]></title>
+<rss version="2.0"><channel>
+  <title><![CDATA[Business Standard — Mutual Funds (Unofficial)]]></title>
   <link>https://www.business-standard.com/markets/mutual-fund</link>
-  <description><![CDATA[Auto-generated feed of recent Mutual Fund articles from Business Standard's Markets section.]]></description>
+  <description><![CDATA[Auto-updated feed from the Mutual Fund page]]></description>
   <language>en-IN</language>
-  <lastBuildDate>Fri, 17 Oct 2025 18:57:40 +0530</lastBuildDate>
+  <lastBuildDate>Mon, 27 Oct 2025 12:44:49 +0530</lastBuildDate>
   <ttl>60</ttl>
-  <item>
-    <title><![CDATA[Mutual funds' cash holding fell in September amid decline in inflows]]></title>
-    <link>https://www.business-standard.com/markets/mutual-fund/mutual-fund-cash-holdings-fall-to-rs-1-76-trillion-in-september-2025-125101600299_1.html</link>
-    <guid>https://www.business-standard.com/markets/mutual-fund/mutual-fund-cash-holdings-fall-to-rs-1-76-trillion-in-september-2025-125101600299_1.html</guid>
-    <pubDate>Thu, 16 Oct 2025 22:51:00 +0530</pubDate>
-    <description><![CDATA[Net inflows into equity schemes down for the second consecutive month]]></description>
-  </item>
-  <item>
-    <title><![CDATA[Hedge fund-style products to reshape India's $900 bn mutual fund industry]]></title>
-    <link>https://www.business-standard.com/markets/mutual-fund/hedge-fund-style-products-to-reshape-india-s-900-bn-mutual-fund-industry-125101600111_1.html</link>
-    <guid>https://www.business-standard.com/markets/mutual-fund/hedge-fund-style-products-to-reshape-india-s-900-bn-mutual-fund-industry-125101600111_1.html</guid>
-    <pubDate>Thu, 16 Oct 2025 08:06:00 +0530</pubDate>
-    <description><![CDATA[SEBI's SIFs allow shorting, derivatives and absolute-return strategies once reserved for hedge funds]]></description>
-  </item>
-  <item>
-    <title><![CDATA[Record inflows help flexicap funds' AUM surpass ₹5 trillion milestone]]></title>
-    <link>https://www.business-standard.com/markets/mutual-fund/flexicap-funds-record-inflows-aum-crosses-rs-5-trillion-investor-shift-125101301139_1.html</link>
-    <guid>https://www.business-standard.com/markets/mutual-fund/flexicap-funds-record-inflows-aum-crosses-rs-5-trillion-investor-shift-125101301139_1.html</guid>
-    <pubDate>Mon, 13 Oct 2025 22:52:00 +0530</pubDate>
-    <description><![CDATA[First diversified equity category to achieve the milestone]]></description>
-  </item>
-  <item>
-    <title><![CDATA[Axis, Tata MFs halt new silver ETF FoF investments amid supply crunch]]></title>
-    <link>https://www.business-standard.com/markets/mutual-fund/axis-tata-mf-suspend-investments-silver-etf-fof-supply-shortage-125101301245_1.html</link>
-    <guid>https://www.business-standard.com/markets/mutual-fund/axis-tata-mf-suspend-investments-silver-etf-fof-supply-shortage-125101301245_1.html</guid>
-    <pubDate>Mon, 13 Oct 2025 20:28:00 +0530</pubDate>
-    <description><![CDATA[Silver ETFs trading at steep premiums amid soaring prices and supply shortages]]></description>
-  </item>
-  <item>
-    <title><![CDATA[MF investors turn cautious ahead of Samvat 2082: Should you stay invested?]]></title>
-    <link>https://www.business-standard.com/markets/news/equity-mutual-fund-investors-turn-cautious-ahead-of-samvat-2082-should-you-stay-invested-125101300257_1.html</link>
-    <guid>https://www.business-standard.com/markets/news/equity-mutual-fund-investors-turn-cautious-ahead-of-samvat-2082-should-you-stay-invested-125101300257_1.html</guid>
-    <pubDate>Mon, 13 Oct 2025 11:52:00 +0530</pubDate>
-    <description><![CDATA[Flows slowed in recent months; what should MF investors do ahead of Samvat 2082?]]></description>
-  </item>
-  <item>
-    <title><![CDATA[Equity MF inflows ease 9% in Sept; gold, silver ETFs draw record sums]]></title>
-    <link>https://www.business-standard.com/markets/mutual-fund/equity-mf-inflows-september-2025-gold-silver-etf-record-sip-125101001184_1.html</link>
-    <guid>https://www.business-standard.com/markets/mutual-fund/equity-mf-inflows-september-2025-gold-silver-etf-record-sip-125101001184_1.html</guid>
-    <pubDate>Fri, 10 Oct 2025 22:26:00 +0530</pubDate>
-    <description><![CDATA[Equity flows moderate amid high redemptions; SIPs hit record highs; gold/silver ETFs surge]]></description>
-  </item>
-  <item>
-    <title><![CDATA[Equity mutual fund inflows decline 9% to ₹30,421 crore in September]]></title>
-    <link>https://www.business-standard.com/markets/mutual-fund/equity-mutual-fund-inflows-decline-9-to-30-421-crore-in-september-125101000650_1.html</link>
-    <guid>https://www.business-standard.com/markets/mutual-fund/equity-mutual-fund-inflows-decline-9-to-30-421-crore-in-september-125101000650_1.html</guid>
-    <pubDate>Fri, 10 Oct 2025 14:40:00 +0530</pubDate>
-    <description><![CDATA[AMFI data shows 9% decline in equity MF inflows for September]]></description>
-  </item>
-  <item>
-    <title><![CDATA[NSDL COO Prashant Vagal for tax-free bonds to boost retail participation]]></title>
-    <link>https://www.business-standard.com/markets/mutual-fund/tax-free-bonds-can-boost-retail-participation-in-debt-market-says-nsdl-coo-125100701150_1.html</link>
-    <guid>https://www.business-standard.com/markets/mutual-fund/tax-free-bonds-can-boost-retail-participation-in-debt-market-says-nsdl-coo-125100701150_1.html</guid>
-    <pubDate>Tue, 07 Oct 2025 23:26:00 +0530</pubDate>
-    <description><![CDATA[Tax-free bonds could help deepen retail participation in debt markets, says NSDL COO]]></description>
-  </item>
-</channel>
-</rss>
+</channel></rss>
