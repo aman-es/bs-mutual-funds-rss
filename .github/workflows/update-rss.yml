@@ -17,14 +17,35 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Fetch Mutual Fund page
+      - name: Fetch Mutual Fund page (robust)
         run: |
           set -e
-          # Use a text-friendly mirror to bypass anti-bot / JS pages
-          URL_MIRROR="https://r.jina.ai/http://www.business-standard.com/markets/mutual-fund"
-          curl -fsSL --compressed -A "Mozilla/5.0 (RSS Updater)" "$URL_MIRROR" -o bs.html
-          echo "Fetched via mirror, first 5 lines:"
-          head -n 5 bs.html || true
+          UA="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+          URLS=(
+            "https://www.business-standard.com/markets/mutual-fund"
+            "http://www.business-standard.com/markets/mutual-fund"
+            "https://r.jina.ai/http://www.business-standard.com/markets/mutual-fund"
+            "https://r.jina.ai/https://www.business-standard.com/markets/mutual-fund"
+          )
+
+          OK=""
+          for U in "${URLS[@]}"; do
+            echo "Trying: $U"
+            CODE=$(curl -sSL --compressed -A "$UA" -w "%{http_code}" -o bs.html "$U" || echo "000")
+            echo "HTTP $CODE for $U"
+            if [ "$CODE" -ge 200 ] && [ "$CODE" -lt 400 ]; then
+              OK="$U"
+              break
+            fi
+          done
+
+          if [ -z "$OK" ]; then
+            echo "Warning: all fetch attempts failed; keeping last response (may be error page)."
+            head -n 20 bs.html || true
+          else
+            echo "Fetched OK from: $OK"
+            head -n 5 bs.html || true
+          fi
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -42,39 +63,54 @@ jobs:
           from bs4 import BeautifulSoup
           from urllib.parse import urljoin
           from datetime import datetime, timezone, timedelta
-          import html, sys
+          import html, sys, re
 
           BASE = "https://www.business-standard.com"
-          with open("bs.html", "rb") as f:
-              soup = BeautifulSoup(f.read(), "lxml")
+          try:
+            with open("bs.html", "rb") as f:
+              raw = f.read()
+          except FileNotFoundError:
+            raw = b""
+          soup = BeautifulSoup(raw or b"", "lxml")
 
+          # Collect anchors that look like MF articles.
           anchors = soup.select('a[href*="/markets/mutual-fund/"]')
 
           items, seen = [], set()
           def add_item(title, link):
-              title = (title or "").strip()
-              if len(title) < 10: return
-              if link in seen: return
-              seen.add(link)
-              items.append((title, link))
+            title = (title or "").strip()
+            if len(title) < 10: 
+              return
+            if link in seen:
+              return
+            seen.add(link)
+            items.append((title, link))
 
           for a in anchors:
-              href = a.get("href")
-              if not href: 
-                  continue
-              link = urljoin(BASE, href)
-              if "/markets/mutual-fund/" not in link:
-                  continue
-              title = a.get_text(" ", strip=True)
-              add_item(title, link)
-              if len(items) >= 20:
-                  break
+            href = a.get("href")
+            if not href:
+              continue
+            link = urljoin(BASE, href)
+            if "/markets/mutual-fund/" not in link:
+              continue
+            title = a.get_text(" ", strip=True)
+            add_item(title, link)
+            if len(items) >= 20:
+              break
 
-          # If none found, don't fail — write fallback
+          # Fallback: scan text for URL-like patterns if anchors failed
+          if not items:
+            text = soup.get_text(" ", strip=True)
+            for m in re.finditer(r"https?://www\.business-standard\.com/markets/mutual-fund/[^\s\"']+", text):
+              add_item("Business Standard (Mutual Fund Article)", m.group(0))
+              if len(items) >= 10:
+                break
+
           IST = timezone(timedelta(hours=5, minutes=30))
           now = datetime.now(IST).strftime("%a, %d %b %Y %H:%M:%S %z")
 
-          def cdata(t): return f"<![CDATA[{t}]]>"
+          def cdata(t): 
+            return f"<![CDATA[{t}]]>"
 
           out = []
           out.append('<?xml version="1.0" encoding="UTF-8"?>')
@@ -88,29 +124,30 @@ jobs:
           out.append('  <ttl>60</ttl>')
 
           if not items:
-              out.append('  <item>')
-              out.append(f'    <title>{cdata("Latest on Business Standard: Mutual Funds")}</title>')
-              out.append('    <link>https://www.business-standard.com/markets/mutual-fund</link>')
-              out.append('    <guid>https://www.business-standard.com/markets/mutual-fund</guid>')
-              out.append(f'    <pubDate>{now}</pubDate>')
-              out.append(f'    <description>{cdata("Temporary fallback: parser found no items this run.")}</description>')
-              out.append('  </item>')
+            # Graceful fallback so Feedly never sees an empty feed
+            out.append('  <item>')
+            out.append(f'    <title>{cdata("Latest on Business Standard: Mutual Funds")}</title>')
+            out.append('    <link>https://www.business-standard.com/markets/mutual-fund</link>')
+            out.append('    <guid>https://www.business-standard.com/markets/mutual-fund</guid>')
+            out.append(f'    <pubDate>{now}</pubDate>')
+            out.append(f'    <description>{cdata("Temporary fallback: parser found no items this run.")}</description>')
+            out.append('  </item>')
           else:
-              for title, link in items[:15]:
-                  title = html.unescape(title)
-                  out.append('  <item>')
-                  out.append(f'    <title>{cdata(title)}</title>')
-                  out.append(f'    <link>{link}</link>')
-                  out.append(f'    <guid>{link}</guid>')
-                  out.append(f'    <pubDate>{now}</pubDate>')
-                  out.append(f'    <description>{cdata(title)}</description>')
-                  out.append('  </item>')
+            for title, link in items[:15]:
+              title = html.unescape(title)
+              out.append('  <item>')
+              out.append(f'    <title>{cdata(title)}</title>')
+              out.append(f'    <link>{link}</link>')
+              out.append(f'    <guid>{link}</guid>')
+              out.append(f'    <pubDate>{now}</pubDate>')
+              out.append(f'    <description>{cdata(title)}</description>')
+              out.append('  </item>')
 
           out.append('</channel></rss>')
           with open("business-standard-mutual-funds.xml", "w", encoding="utf-8") as f:
-              f.write("\n".join(out))
+            f.write("\n".join(out))
 
-          print(f"Wrote {len(items[:15])} items.")
+          print(f"Wrote {len(items[:15])} items (fallback written if 0).")
           PY
 
       - name: Commit & Push if changed
