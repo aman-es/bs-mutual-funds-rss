@@ -25,46 +25,55 @@ jobs:
         run: |
           python3 - <<'PY'
           import re, html, datetime
-          from datetime import timezone, timedelta
-          page = open("bs.html", encoding="utf-8", errors="ignore").read()
-          items = re.findall(r'<a[^>]+href="(/markets/mutual-fund/[^"]+)"[^>]*>([^<]{10,200})</a>', page, flags=re.I)
+          from datetime import timezone, timedelta, datetime as dt
+
+          # Read downloaded HTML
+          with open("bs.html", encoding="utf-8", errors="ignore") as f:
+              page = f.read()
+
+          # Capture article URLs and titles more reliably
+          pattern = re.compile(
+              r'href="(/markets/mutual-fund/[^"]+)"[^>]*>\s*([^<]{10,200})</a>',
+              re.I
+          )
+          items = re.findall(pattern, page)
+
+          # Deduplicate and keep 15 newest
           seen, dedup = set(), []
           for href, title in items:
               if href not in seen:
                   seen.add(href)
                   dedup.append((href, title.strip()))
           dedup = dedup[:15]
+
           IST = timezone(timedelta(hours=5, minutes=30))
-          now = datetime.datetime.now(IST).strftime("%a, %d %b %Y %H:%M:%S %z")
+          now = dt.now(IST).strftime("%a, %d %b %Y %H:%M:%S %z")
+
           def cdata(t): return f"<![CDATA[{t}]]>"
-          xml = ['<?xml version="1.0" encoding="UTF-8"?>','<rss version="2.0"><channel>']
-          xml += [
-              f'  <title>{cdata("Business Standard — Mutual Funds (Unofficial)")}</title>',
-              '  <link>https://www.business-standard.com/markets/mutual-fund</link>',
-              f'  <description>{cdata("Auto-updated feed from the Mutual Fund page")}</description>',
-              '  <language>en-IN</language>',
-              f'  <lastBuildDate>{now}</lastBuildDate>',
-              '  <ttl>60</ttl>'
-          ]
+
+          xml = []
+          xml.append('<?xml version="1.0" encoding="UTF-8"?>')
+          xml.append('<rss version="2.0">')
+          xml.append('<channel>')
+          xml.append(f'  <title>{cdata("Business Standard — Mutual Funds (Unofficial)")}</title>')
+          xml.append('  <link>https://www.business-standard.com/markets/mutual-fund</link>')
+          xml.append(f'  <description>{cdata("Auto-updated feed from Business Standard Mutual Fund page")}</description>')
+          xml.append('  <language>en-IN</language>')
+          xml.append(f'  <lastBuildDate>{now}</lastBuildDate>')
+          xml.append('  <ttl>60</ttl>')
+
           for href, title in dedup:
               link = "https://www.business-standard.com" + href
-              xml += [
-                  '  <item>',
-                  f'    <title>{cdata(title)}</title>',
-                  f'    <link>{link}</link>',
-                  f'    <guid>{link}</guid>',
-                  f'    <pubDate>{now}</pubDate>',
-                  f'    <description>{cdata(title)}</description>',
-                  '  </item>'
-              ]
-          xml += ['</channel></rss>']
-          open("business-standard-mutual-funds.xml","w",encoding="utf-8").write("\n".join(xml))
-          PY
+              title = html.unescape(title)
+              xml.append('  <item>')
+              xml.append(f'    <title>{cdata(title)}</title>')
+              xml.append(f'    <link>{link}</link>')
+              xml.append(f'    <guid>{link}</guid>')
+              xml.append(f'    <pubDate>{now}</pubDate>')
+              xml.append(f'    <description>{cdata(title)}</description>')
+              xml.append('  </item>')
 
-      - name: Commit & Push if changed
-        run: |
-          git config user.name "github-actions"
-          git config user.email "actions@github.com"
-          git add business-standard-mutual-funds.xml
-          git commit -m "auto: refresh feed" || echo "No changes"
-          git push
+          xml.append('</channel></rss>')
+          with open("business-standard-mutual-funds.xml", "w", encoding="utf-8") as f:
+              f.write("\n".join(xml))
+          PY
