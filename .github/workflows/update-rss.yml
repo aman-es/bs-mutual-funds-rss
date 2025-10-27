@@ -19,9 +19,30 @@ jobs:
 
       - name: Fetch Mutual Fund page
         run: |
-          curl -fsSL -A "Mozilla/5.0 (RSS Updater)" \
-            https://www.business-standard.com/markets/mutual-fund \
-            -o bs.html
+          set -e
+          URL="https://www.business-standard.com/markets/mutual-fund"
+          STATUS=$(curl -sS -L --compressed --http1.1 \
+            -A "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" \
+            -H "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8" \
+            -H "Accept-Language: en-IN,en;q=0.9" \
+            -H "Referer: https://www.business-standard.com/" \
+            -H "Upgrade-Insecure-Requests: 1" \
+            -w "%{http_code}" -o bs.html "$URL")
+
+          echo "HTTP_STATUS=$STATUS"
+          # Treat 2xx and 3xx as OK; anything else -> show first lines and fail
+          if [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 400 ]; then
+            echo "Fetched page OK."
+          else
+            echo "Fetch failed with HTTP $STATUS. First 50 lines of response:"
+            head -n 50 bs.html || true
+            exit 1
+          fi
+
+          # Quick sanity: ensure the HTML has 'mutual-fund' links
+          if ! grep -q "/markets/mutual-fund/" bs.html; then
+            echo "Warning: page fetched but no /markets/mutual-fund/ links found. Continuing so parser fallback can try."
+          fi
 
       - name: Setup Python
         uses: actions/setup-python@v5
