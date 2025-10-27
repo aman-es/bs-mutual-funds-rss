@@ -1,0 +1,67 @@
+name: Update RSS Feed
+
+on:
+  schedule:
+    - cron: "0 */6 * * *"   # every 6 hours (UTC)
+  workflow_dispatch:
+
+jobs:
+  update-feed:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Fetch Mutual Fund page
+        run: |
+          curl -s -H "User-Agent: Mozilla/5.0 (RSS Updater)" \
+            https://www.business-standard.com/markets/mutual-fund \
+            -o bs.html
+
+      - name: Generate RSS XML
+        run: |
+          python3 - <<'PY'
+          import re, html, datetime
+          from datetime import timezone, timedelta
+          page = open("bs.html", encoding="utf-8", errors="ignore").read()
+          items = re.findall(r'<a[^>]+href="(/markets/mutual-fund/[^"]+)"[^>]*>([^<]{10,200})</a>', page, flags=re.I)
+          seen, dedup = set(), []
+          for href, title in items:
+              if href not in seen:
+                  seen.add(href)
+                  dedup.append((href, title.strip()))
+          dedup = dedup[:15]
+          IST = timezone(timedelta(hours=5, minutes=30))
+          now = datetime.datetime.now(IST).strftime("%a, %d %b %Y %H:%M:%S %z")
+          def cdata(t): return f"<![CDATA[{t}]]>"
+          xml = ['<?xml version="1.0" encoding="UTF-8"?>','<rss version="2.0"><channel>']
+          xml += [
+              f'  <title>{cdata("Business Standard — Mutual Funds (Unofficial)")}</title>',
+              '  <link>https://www.business-standard.com/markets/mutual-fund</link>',
+              f'  <description>{cdata("Auto-updated feed from the Mutual Fund page")}</description>',
+              '  <language>en-IN</language>',
+              f'  <lastBuildDate>{now}</lastBuildDate>',
+              '  <ttl>60</ttl>'
+          ]
+          for href, title in dedup:
+              link = "https://www.business-standard.com" + href
+              xml += [
+                  '  <item>',
+                  f'    <title>{cdata(title)}</title>',
+                  f'    <link>{link}</link>',
+                  f'    <guid>{link}</guid>',
+                  f'    <pubDate>{now}</pubDate>',
+                  f'    <description>{cdata(title)}</description>',
+                  '  </item>'
+              ]
+          xml += ['</channel></rss>']
+          open("business-standard-mutual-funds.xml","w",encoding="utf-8").write("\n".join(xml))
+          PY
+
+      - name: Commit & Push if changed
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add business-standard-mutual-funds.xml
+          git commit -m "auto: refresh feed" || echo "No changes"
+          git push
