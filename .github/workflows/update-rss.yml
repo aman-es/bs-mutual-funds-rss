@@ -1,12 +1,12 @@
 name: Update RSS Feed
 
+permissions:
+  contents: write
+
 on:
   schedule:
     - cron: "0 */6 * * *"   # every 6 hours (UTC)
   workflow_dispatch:
-
-permissions:
-  contents: write
 
 jobs:
   update-feed:
@@ -14,66 +14,124 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Fetch Mutual Fund page
         run: |
-          curl -s -H "User-Agent: Mozilla/5.0 (RSS Updater)" \
+          curl -fsSL -A "Mozilla/5.0 (RSS Updater)" \
             https://www.business-standard.com/markets/mutual-fund \
             -o bs.html
 
-      - name: Generate RSS XML
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install parser libs
+        run: |
+          python -m pip install --upgrade pip
+          pip install beautifulsoup4 lxml
+
+      - name: Generate RSS XML (BeautifulSoup)
         run: |
           python3 - <<'PY'
-          import re, html, datetime
-          from datetime import timezone, timedelta, datetime as dt
+          from bs4 import BeautifulSoup
+          from urllib.parse import urljoin
+          from datetime import datetime, timezone, timedelta
+          import html, sys
 
-          # Read downloaded HTML
-          with open("bs.html", encoding="utf-8", errors="ignore") as f:
-              page = f.read()
+          BASE = "https://www.business-standard.com"
 
-          # Capture article URLs and titles more reliably
-          pattern = re.compile(
-              r'href="(/markets/mutual-fund/[^"]+)"[^>]*>\s*([^<]{10,200})</a>',
-              re.I
-          )
-          items = re.findall(pattern, page)
+          # Load downloaded HTML
+          with open("bs.html", "rb") as f:
+            soup = BeautifulSoup(f.read(), "lxml")
 
-          # Deduplicate and keep 15 newest
-          seen, dedup = set(), []
-          for href, title in items:
-              if href not in seen:
-                  seen.add(href)
-                  dedup.append((href, title.strip()))
-          dedup = dedup[:15]
+          # Primary: anchors pointing to /markets/mutual-fund/
+          anchors = soup.select('a[href^="/markets/mutual-fund/"], a[href*="/markets/mutual-fund/"]')
+
+          items = []
+          seen = set()
+
+          def add_item(title, link):
+            title = (title or "").strip()
+            if len(title) < 10:
+              return
+            if link in seen:
+              return
+            seen.add(link)
+            items.append((title, link))
+
+          for a in anchors:
+            href = a.get("href")
+            if not href:
+              continue
+            link = urljoin(BASE, href)
+            if "/markets/mutual-fund/" not in link:
+              continue
+            title = a.get_text(" ", strip=True)
+            add_item(title, link)
+            if len(items) >= 20:
+              break
+
+          # Fallback: listing blocks if primary missed
+          if not items:
+            for card in soup.select(".listing-txt, .list-txt, article, li"):
+              a = card.select_one('a[href*="/markets/mutual-fund/"]')
+              if not a:
+                continue
+              link = urljoin(BASE, a.get("href",""))
+              title = a.get_text(" ", strip=True)
+              add_item(title, link)
+              if len(items) >= 20:
+                break
+
+          if not items:
+            print("No items parsed from page. HTML structure may have changed.", file=sys.stderr)
+            sys.exit(1)
 
           IST = timezone(timedelta(hours=5, minutes=30))
-          now = dt.now(IST).strftime("%a, %d %b %Y %H:%M:%S %z")
+          now = datetime.now(IST).strftime("%a, %d %b %Y %H:%M:%S %z")
 
-          def cdata(t): return f"<![CDATA[{t}]]>"
+          def cdata(t): 
+            return f"<![CDATA[{t}]]>"
 
-          xml = []
-          xml.append('<?xml version="1.0" encoding="UTF-8"?>')
-          xml.append('<rss version="2.0">')
-          xml.append('<channel>')
-          xml.append(f'  <title>{cdata("Business Standard — Mutual Funds (Unofficial)")}</title>')
-          xml.append('  <link>https://www.business-standard.com/markets/mutual-fund</link>')
-          xml.append(f'  <description>{cdata("Auto-updated feed from Business Standard Mutual Fund page")}</description>')
-          xml.append('  <language>en-IN</language>')
-          xml.append(f'  <lastBuildDate>{now}</lastBuildDate>')
-          xml.append('  <ttl>60</ttl>')
+          out = []
+          out.append('<?xml version="1.0" encoding="UTF-8"?>')
+          out.append('<rss version="2.0">')
+          out.append('<channel>')
+          out.append(f'  <title>{cdata("Business Standard — Mutual Funds (Unofficial)")}</title>')
+          out.append('  <link>https://www.business-standard.com/markets/mutual-fund</link>')
+          out.append(f'  <description>{cdata("Auto-updated feed from the Mutual Fund page")}</description>')
+          out.append('  <language>en-IN</language>')
+          out.append(f'  <lastBuildDate>{now}</lastBuildDate>')
+          out.append('  <ttl>60</ttl>')
 
-          for href, title in dedup:
-              link = "https://www.business-standard.com" + href
-              title = html.unescape(title)
-              xml.append('  <item>')
-              xml.append(f'    <title>{cdata(title)}</title>')
-              xml.append(f'    <link>{link}</link>')
-              xml.append(f'    <guid>{link}</guid>')
-              xml.append(f'    <pubDate>{now}</pubDate>')
-              xml.append(f'    <description>{cdata(title)}</description>')
-              xml.append('  </item>')
+          for title, link in items[:15]:
+            title = html.unescape(title)
+            out.append('  <item>')
+            out.append(f'    <title>{cdata(title)}</title>')
+            out.append(f'    <link>{link}</link>')
+            out.append(f'    <guid>{link}</guid>')
+            out.append(f'    <pubDate>{now}</pubDate>')
+            out.append(f'    <description>{cdata(title)}</description>')
+            out.append('  </item>')
 
-          xml.append('</channel></rss>')
+          out.append('</channel></rss>')
+
           with open("business-standard-mutual-funds.xml", "w", encoding="utf-8") as f:
-              f.write("\n".join(xml))
+            f.write("\n".join(out))
+
+          print(f"Wrote {len(items[:15])} items.")
           PY
+
+      - name: Commit & Push if changed
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add business-standard-mutual-funds.xml || true
+          # Exit early if nothing changed
+          git diff --staged --quiet && echo "No changes" && exit 0
+          git commit -m "auto: refresh feed"
+          git pull --rebase origin main || true
+          git push origin HEAD:main
